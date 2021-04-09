@@ -23,8 +23,6 @@ pub fn android_main() {
     let application_version = 1;
     let engine_name: Option<&str> = None;
     let engine_version: Option<u32> = None;
-    let required_layers: &[&str] = &[];
-    let required_extensions: &[&str] = &[];
 
     let entry = XrEntry::load().unwrap();
 
@@ -103,6 +101,48 @@ pub fn android_main() {
         app_info
     };
 
+    info!("xrEnumerateInstanceExtensionProperties()");
+    let xr_available_extensions = unsafe {
+        let mut count = 0;
+        (entry.fp.enumerate_instance_extension_properties)(
+            std::ptr::null(),
+            0,
+            &mut count,
+            std::ptr::null_mut(),
+        );
+        let mut ext_properties = Vec::with_capacity(count as usize);
+        let result = (entry.fp.enumerate_instance_extension_properties)(
+            std::ptr::null(),
+            ext_properties.len() as u32,
+            &mut count,
+            ext_properties.as_mut_ptr(),
+        );
+        if result != XrResult::SUCCESS {
+            panic!("Failed xrEnumerateInstanceExtensionProperties")
+        }
+        ext_properties.set_len((count - 1) as usize);
+        ext_properties
+            .iter()
+            .map(|x| {
+                let pos = x.extension_name.iter().position(|&c| c == 0);
+                match pos {
+                    Some(idx) => {
+                        std::ffi::CStr::from_bytes_with_nul_unchecked(&x.extension_name[..idx + 1])
+                            .to_owned()
+                    }
+                    None => panic!("Found invalid extension"),
+                }
+            })
+            .collect::<Vec<_>>()
+    };
+
+    info!(
+        "OpenXR available extensions: {:#?}",
+        xr_available_extensions
+    );
+
+    let required_layers: &[&str] = &[];
+
     // Create NULL-terminated CStrings and collect pointers to them
     // into vectors to be passed to OpenXR.
     let required_layers_cstring = required_layers
@@ -115,11 +155,10 @@ pub fn android_main() {
         .map(|layer| layer.as_ptr())
         .collect::<Vec<_>>();
 
-    let additional_extensions = ["XR_KHR_vulkan_enable", "XR_KHR_android_create_instance"];
+    let required_extensions = ["XR_KHR_vulkan_enable", "XR_KHR_android_create_instance"];
 
     let required_exts_cstring = required_extensions
         .iter()
-        .chain(additional_extensions.iter())
         .filter_map(|&name| CString::new(name).ok())
         .collect::<Vec<_>>();
 
