@@ -21,6 +21,7 @@ min_sdk_version = 16
 target_sdk_version = 29
 launch_mode = "singleTask"
 orientation = "landscape"
+runtime_libs = "apk_content/lib"
 
 [[package.metadata.android.application_metadatas]]
 name = "com.samsung.android.vr.application.mode"
